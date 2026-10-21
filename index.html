@@ -1,0 +1,318 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reflex Rush</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #0b1020;
+    color: #f4f7ff;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 14px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 38px;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  h1 span {
+    color: #67e8f9;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #a5b4cf;
+    margin-bottom: 26px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat {
+    background: #171f35;
+    border: 1px solid #293651;
+    border-radius: 14px;
+    padding: 14px 5px;
+    text-align: center;
+  }
+
+  .stat small {
+    color: #a5b4cf;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .stat strong {
+    font-size: 25px;
+  }
+
+  #arena {
+    height: 350px;
+    background: #111a2e;
+    border: 2px solid #293651;
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+  #message {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 25px;
+    text-align: center;
+    color: #c5d1e8;
+    line-height: 1.7;
+    pointer-events: none;
+  }
+
+  #target {
+    position: absolute;
+    width: 54px;
+    height: 54px;
+    border: 0;
+    border-radius: 50%;
+    background: #67e8f9;
+    box-shadow: 0 0 22px #22d3ee88;
+    cursor: pointer;
+    display: none;
+    touch-action: manipulation;
+  }
+
+  #target::after {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border: 3px solid #0b1020;
+    border-radius: 50%;
+  }
+
+  #target:active {
+    transform: scale(.9);
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  button.action {
+    flex: 1;
+    border: 0;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  #start {
+    background: #67e8f9;
+    color: #07111d;
+  }
+
+  #reset {
+    background: #202c45;
+    color: #f4f7ff;
+  }
+
+  .note {
+    color: #8494b2;
+    text-align: center;
+    font-size: 13px;
+    margin-top: 18px;
+  }
+
+  @media (max-width: 450px) {
+    h1 { font-size: 30px; }
+    #arena { height: 320px; }
+    .stat strong { font-size: 21px; }
+  }
+</style>
+</head>
+
+<body>
+<main class="app">
+  <h1>REFLEX <span>RUSH</span></h1>
+  <p class="subtitle">How fast are your reactions?</p>
+
+  <section class="stats">
+    <div class="stat">
+      <small>SCORE</small>
+      <strong id="score">0</strong>
+    </div>
+    <div class="stat">
+      <small>TIME</small>
+      <strong id="time">30</strong>
+    </div>
+    <div class="stat">
+      <small>AVG. REACTION</small>
+      <strong id="average">—</strong>
+    </div>
+  </section>
+
+  <div id="arena">
+    <div id="message">
+      Press START, then tap the glowing target as quickly as possible.
+      You have 30 seconds!
+    </div>
+    <button id="target" aria-label="Hit target"></button>
+  </div>
+
+  <div class="controls">
+    <button class="action" id="start">START GAME</button>
+    <button class="action" id="reset">RESET</button>
+  </div>
+
+  <p class="note">
+    Every hit earns 1 point. Try to beat your personal best!
+  </p>
+</main>
+
+<script>
+  const arena = document.getElementById("arena");
+  const target = document.getElementById("target");
+  const message = document.getElementById("message");
+  const scoreDisplay = document.getElementById("score");
+  const timeDisplay = document.getElementById("time");
+  const averageDisplay = document.getElementById("average");
+  const startButton = document.getElementById("start");
+  const resetButton = document.getElementById("reset");
+
+  let score = 0;
+  let timeLeft = 30;
+  let reactionTimes = [];
+  let started = false;
+  let countdown;
+  let shownAt = 0;
+
+  function moveTarget() {
+    const padding = 8;
+    const maxX = arena.clientWidth - target.offsetWidth - padding;
+    const maxY = arena.clientHeight - target.offsetHeight - padding;
+
+    target.style.left =
+      (padding + Math.random() * Math.max(0, maxX - padding)) + "px";
+
+    target.style.top =
+      (padding + Math.random() * Math.max(0, maxY - padding)) + "px";
+
+    shownAt = performance.now();
+  }
+
+  function updateAverage() {
+    if (reactionTimes.length === 0) {
+      averageDisplay.textContent = "—";
+      return;
+    }
+
+    const avg = reactionTimes.reduce((sum, value) => sum + value, 0)
+      / reactionTimes.length;
+
+    averageDisplay.textContent = Math.round(avg) + "ms";
+  }
+
+  function endGame() {
+    started = false;
+    clearInterval(countdown);
+    target.style.display = "none";
+    message.style.display = "flex";
+    startButton.textContent = "PLAY AGAIN";
+
+    message.textContent =
+      "Time's up! Your score: " + score +
+      ". Average reaction: " +
+      (reactionTimes.length
+        ? Math.round(reactionTimes.reduce((a, b) => a + b, 0)
+          / reactionTimes.length) + " ms"
+        : "No hits") +
+      ". Press PLAY AGAIN to try again.";
+  }
+
+  function startGame() {
+    clearInterval(countdown);
+
+    score = 0;
+    timeLeft = 30;
+    reactionTimes = [];
+    started = true;
+
+    scoreDisplay.textContent = score;
+    timeDisplay.textContent = timeLeft;
+    averageDisplay.textContent = "—";
+    message.style.display = "none";
+    target.style.display = "block";
+    startButton.textContent = "GAME RUNNING";
+
+    moveTarget();
+
+    countdown = setInterval(() => {
+      timeLeft--;
+      timeDisplay.textContent = timeLeft;
+
+      if (timeLeft <= 0) {
+        endGame();
+      }
+    }, 1000);
+  }
+
+  target.addEventListener("click", () => {
+    if (!started) return;
+
+    reactionTimes.push(performance.now() - shownAt);
+    score++;
+    scoreDisplay.textContent = score;
+    updateAverage();
+    moveTarget();
+  });
+
+  startButton.addEventListener("click", () => {
+    if (!started) startGame();
+  });
+
+  resetButton.addEventListener("click", () => {
+    clearInterval(countdown);
+    started = false;
+    score = 0;
+    timeLeft = 30;
+    reactionTimes = [];
+
+    scoreDisplay.textContent = "0";
+    timeDisplay.textContent = "30";
+    averageDisplay.textContent = "—";
+    target.style.display = "none";
+    message.style.display = "flex";
+    message.textContent =
+      "Press START, then tap the glowing target as quickly as possible. You have 30 seconds!";
+    startButton.textContent = "START GAME";
+  });
+</script>
+</body>
+</html>
